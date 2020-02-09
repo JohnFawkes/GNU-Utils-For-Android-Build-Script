@@ -243,14 +243,28 @@ for LBIN in $BIN; do
     elif [ "$LARCH" == "i686" ]; then
       FLAGS="TIME_T_32_BIT_OK=yes "
     fi
+    
+    case $LARCH in
+      "arm") CFLAGS="$CFLAGS -mfloat-abi=softfp -mthumb"; LDFLAGS="$LDFLAGS -march=armv7-a -Wl,--fix-cortex-a8";;
+      "i686") CFLAGS="$CFLAGS -march=i686 -mtune=intel -mssse3 -mfpmath=sse -m32"; [ -z $FLAGS ] && FLAGS="TIME_T_32_BIT_OK=yes " || FLAGS="$FLAGS TIME_T_32_BIT_OK=yes ";;
+      "x86_64") CFLAGS="$CFLAGS -march=x86-64 -msse4.2 -mpopcnt -m64 -mtune=intel";;
+    esac
 
-    # Fixes:
-    # 1) mktime_internal build error for non-ndk arm/64 cross-compile
-    # 2) %n issue due to these binaries using old gnulib (This was in Jan 2019: http://git.savannah.gnu.org/gitweb/?p=gnulib.git;a=commit;h=6c0f109fb98501fc8d65ea2c83501b45a80b00ab)
-    # 3) minus_zero duplication error in NDK
-    # 4) Bionic error fix in NDK
-    # 5) Sort and timeout binaries have what appears to be seccomp problems and so don't work when compiled without ndk
-    echogreen "Configuring for $LARCH"
+    # Ed has super old configure flags, Bash got lots of stuff, Sort and timeout don't work on some roms, grep needs pcre
+    case $LBIN in
+      "bash") ./configure $FLAGS--disable-nls --without-bash-malloc bash_cv_dev_fd=whacky bash_cv_getcwd_malloc=yes --enable-largefile --enable-alias --enable-history --enable-readline --enable-multibyte --enable-job-control --enable-array-variables --disable-stripping --host=$target_host CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS";;
+      "coreutils") $NDK && ./configure $FLAGS--disable-nls --without-gmp --enable-no-install-program=stdbuf --enable-single-binary=symlinks --prefix=/system --sbindir=/system/bin --libexecdir=/system/bin --sharedstatedir=/sdcard/gnu/com --localstatedir=/sdcard/gnu/var --datarootdir=/sdcard/gnu/share --host=$target_host CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" || ./configure $FLAGS--disable-nls --without-gmp --with-gnu-ld --enable-no-install-program=stdbuf --enable-single-binary=symlinks --enable-single-binary-exceptions=sort,timeout,sleep --prefix=/system --sbindir=/system/bin --libexecdir=/system/bin --sharedstatedir=/sdcard/gnu/com --localstatedir=/sdcard/gnu/var --datarootdir=/sdcard/gnu/share --host=$target_host CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS";;
+      "ed") [ "$target_host" == "i686-linux-gnu" ] && ./configure --disable-stripping CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" || ./configure --disable-stripping CC=$GCC CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS";;
+			"findutils") ./configure $FLAGS--disable-nls --prefix=/system --sbindir=/system/bin --libexecdir=/system/bin --sharedstatedir=/sdcard/gnu/com --localstatedir=/sdcard/gnu/var --datarootdir=/sdcard/gnu/share --host=$target_host CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS";;
+			"grep") build_pcre -s
+							./configure $FLAGS--disable-shared --enable-perl-regexp --disable-nls --host=$target_host CFLAGS="$CFLAGS -I$DIR/$LBIN-$VER/pcre/include" LDFLAGS="$LDFLAGS -L$DIR/$LBIN-$VER/pcre/lib";;
+			*) ./configure $FLAGS--disable-nls --without-gmp --disable-stripping --host=$target_host CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS";;
+    esac
+    [ $? -eq 0 ] || { echored "Configure failed!"; exit 1; }
+
+    # Build
+    echogreen "Building"
+    # Fixes
     case $LBIN in
       "bash")
         $STATIC && FLAGS="$FLAGS--enable-static-link "
