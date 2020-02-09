@@ -22,10 +22,10 @@ The below table notes if the binary is compatible with android ndk, linaro, or g
 | --------- |:-------:|:-------:|:------:|
 | **bash**      | *Static*  | Yes     | Yes    |
 | **bc**        | Yes     | Yes     | Yes    |
-| **coreutils** | *Dynamic* | *Static*  | *Static*  |
+| **coreutils** | Yes     | *Static*  | *Static*  |
 | **cpio**      | Yes     | Yes     | Yes    |
 | **diffutils** | Yes     | Yes     | Yes    |
-| **ed**        | Yes     | Yes     | Yes    |
+| **ed**        | Yes     | No      | No     |
 | **findutils** | Yes     | *Dynamic* | *Dynamic* |
 | **gawk**      | *Static*  | Yes     | Yes    |
 | **grep**      | Yes       | Yes     | Yes    |
@@ -35,14 +35,12 @@ The below table notes if the binary is compatible with android ndk, linaro, or g
 | **sed**       | Yes     | Yes     | Yes    |
 | **tar**       | Yes     | Yes     | Yes    |
 
-*NDK won't compile bash as static for arm64 architecture for reasons still unknown*<br/>
-*Coreutils sort and timeout binaries have what appears to be seccomp problems when compiled without ndk statically and so they're left out of the combined binary*<br/>
-*Findutils no longer compiles static without ndk - not sure what updates broke it.<br/>
-*Pwcat and Grcat (part of gawk) seg fault when ndk is used, compile without it to use them
+* NDK won't compile bash as static for arm64 architecture for reasons still unknown<br/>
+* Pwcat and Grcat (part of gawk) seg fault when ndk is used, compile without it to use them
 
-## Future Ideas
+## Dynamic link Issue
 
-* Compile all as dynamic with shared libraries rather than static compile
+If the binary wasn't compiled with NDK, it'll have library depenencies on non existent libraries. Some of these can be remedied with symlinks to it (for example: libc.so -> libc.so.6) but some can't because no version of it exists on android (like libreadline). In the case of libdl, even if symlink is made, it still doesn't work oddly.
 
 ## Credits
 
